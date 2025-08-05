@@ -1,0 +1,118 @@
+.dashboard-root {
+  display: flex;
+  height: 100vh;
+  background-color: #f9f9f9;
+}
+
+.drawer-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.drawer-avatar {
+  width: 64px !important;
+  height: 64px !important;
+  margin-bottom: 8px;
+  background-color: #ffffff20;
+}
+
+.drawer-username {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.drawer-email {
+  color: #ffffffcc;
+}
+
+.drawer-divider {
+  background-color: rgba(255, 255, 255, 0.2);
+  margin: 8px 0;
+}
+
+.drawer-item {
+  color: #ffffff;
+  border-radius: 8px;
+  margin: 4px 12px;
+  transition: background-color 0.2s ease;
+  padding: 8px 16px !important;
+}
+
+.drawer-item:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.drawer-icon {
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.drawer-icon svg {
+  color: #ffffff;
+  font-size: 20px;
+}
+
+.drawer-item .MuiListItemText-primary {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #ffffff;
+}
+
+.dashboard-main {
+  flex-grow: 1;
+  padding: 50px;
+  overflow-y: auto;
+  background-color: #edeff8 ;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.bills-table-container {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.bills-table {
+  min-width: 650px;
+  background-color: #ffffff;
+}
+
+.bills-table thead th {
+  background-color: #3f51b5;
+  font-weight: 600;
+  color: white;
+}
+
+.bills-table-row:hover {
+  background-color: #f9fbff;
+}
+
+.MuiTableCell-root {
+  padding: 12px 16px;
+}
+
+.MuiIconButton-root {
+  padding: 6px;
+}
+
+.button {
+    background-color: #3f51b5 !important;
+    padding: 8px 30px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+}
+
+.text {
+    color: #3f51b5 !important;
+    font-size: 40px !important;
+    font-weight: 700 !important;
+}

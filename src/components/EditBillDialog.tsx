@@ -60,7 +60,7 @@ const EditBillDialog: React.FC<EditBillDialogProps> = ({ open, onClose, bill, on
             });
         }
     }, [open, bill]);
-
+    
 
     // Upload file and mark its type, prevent duplicates
     const handleUpload = (file: File, type: "sales" | "voucher") => {

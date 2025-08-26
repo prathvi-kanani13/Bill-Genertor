@@ -12,7 +12,8 @@ import {
   Paper,
   TextField,
   InputAdornment,
-  CircularProgress
+  CircularProgress,
+  TablePagination
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -38,7 +39,7 @@ interface Bill {
     fileName: string;
     fileType: string;
     url: string;
-    invoiceName?: string; // This property is now optional
+    invoiceName?: string;
     invoiceId?: number;
     invoiceFileName?: string;
     invoiceFileType?: string;
@@ -57,6 +58,10 @@ const Dashboard: React.FC = () => {
   const [currentBillId, setCurrentBillId] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   // Fetch bills from API
   useEffect(() => {
     const fetchBills = async () => {
@@ -73,14 +78,14 @@ const Dashboard: React.FC = () => {
           amount: b.amount,
           tax: b.tax,
           uploadedFiles: b.invoice?.map((inv: any) => ({
-            invoiceId: inv.invoiceId,              // keep id for delete
+            invoiceId: inv.invoiceId,
             invoiceName: inv.invoiceName,
             invoiceFileName: inv.invoiceFileName,
             invoiceFileType: inv.invoiceFileType,
-            invoiceFile: inv.invoiceFile,          // raw base64 for delete API
-            fileName: inv.invoiceFileName,         // for UI text field
+            invoiceFile: inv.invoiceFile,
+            fileName: inv.invoiceFileName,
             fileType: inv.invoiceFileType,
-            url: `${getMimePrefix(inv.invoiceFile)}${inv.invoiceFile}`, //  correct URL
+            url: `${getMimePrefix(inv.invoiceFile)}${inv.invoiceFile}`,
           })) || []
         }));
 
@@ -88,7 +93,7 @@ const Dashboard: React.FC = () => {
       } catch (error) {
         console.error("Failed to fetch bills", error);
       } finally {
-        setLoading(false); // stop loading
+        setLoading(false);
       }
     };
     fetchBills();
@@ -108,6 +113,8 @@ const Dashboard: React.FC = () => {
     setBills(prev => [...prev, newBill]);
     setEditingBillId(newId);
     setEditedBillData(newBill);
+    // Move to the last page when a new bill is added
+    setPage(Math.floor(bills.length / rowsPerPage));
   };
 
   const handleSaveBill = async (id: number) => {
@@ -115,7 +122,6 @@ const Dashboard: React.FC = () => {
     if (!billToSave) return;
 
     try {
-      // Convert uploadedFiles to backend invoice format
       const invoices = billToSave.uploadedFiles?.map((file) => {
         const base64Data = file.url.includes(",") ? file.url.split(",")[1] : file.url;
         return {
@@ -126,7 +132,6 @@ const Dashboard: React.FC = () => {
         };
       }) || [];
 
-      // Prepare payload for backend
       const payload = {
         billNo: (editedBillData.billNo ?? billToSave.billNo)?.trim(),
         billDate: (editedBillData.date ?? billToSave.date)?.trim(),
@@ -138,13 +143,11 @@ const Dashboard: React.FC = () => {
 
       console.log("Sending payload:", payload);
 
-      // Validate required fields
       if (!payload.billNo || !payload.billDate || !payload.partyName || !payload.amount || !payload.tax) {
         console.error("Missing required fields in payload", payload);
         return;
       }
 
-      // Call backend API
       const res = await fetch("http://10.55.2.48:8081/addBill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,7 +162,6 @@ const Dashboard: React.FC = () => {
       const savedBill = await res.json();
       console.log("Saved bill from backend:", savedBill);
 
-      // Update UI state with backend returned data
       const updatedBill: Bill = {
         id,
         billNo: savedBill.billNo,
@@ -175,7 +177,6 @@ const Dashboard: React.FC = () => {
           })) || [],
       };
 
-      // Update bills state
       setBills((prev) => prev.map((b) => (b.id === id ? updatedBill : b)));
       setEditingBillId(null);
       setEditedBillData({});
@@ -227,18 +228,16 @@ const Dashboard: React.FC = () => {
     setUploadDialogOpen(true);
   };
 
-  // In Dashboard.tsx
   const handleDeleteInvoice = async (invoiceId: number, billId: string) => {
     try {
       const res = await fetch("http://10.55.2.48:8081/deleteInvoice", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId }), // Only need the ID to delete
+        body: JSON.stringify({ invoiceId }),
       });
 
       if (!res.ok) throw new Error("Failed to delete invoice");
 
-      // After successful deletion on the backend, update the bills state
       setBills((prevBills) =>
         prevBills.map((bill) =>
           bill.id.toString() === billId
@@ -282,11 +281,10 @@ const Dashboard: React.FC = () => {
         throw new Error("Failed to delete all invoices");
       }
 
-      // After successful API call, update the state of the Dashboard
       setBills(prevBills =>
         prevBills.map(bill =>
           bill.id.toString() === billId
-            ? { ...bill, uploadedFiles: [] } // Set uploadedFiles to an empty array
+            ? { ...bill, uploadedFiles: [] }
             : bill
         )
       );
@@ -296,30 +294,28 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  //  Append new uploads instead of replacing
   const handleUploadSubmit = (files: { fileName: string; file: File; invoiceName: string }[], billId: string) => {
     const filesWithBase64Promises = files.map(f =>
-      new Promise<{ // Prepare Files for Conversion
+      new Promise<{
         fileName: string;
         fileType: string;
         url: string;
-        invoiceName?: string; // Add this
+        invoiceName?: string;
       }>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve({
           fileName: f.fileName,
           fileType: f.file.name.slice(f.file.name.lastIndexOf('.')),
           url: reader.result as string,
-          invoiceName: f.invoiceName, // Use the invoiceName from the dialog
+          invoiceName: f.invoiceName,
         });
         reader.onerror = (err) => reject(err);
-        reader.readAsDataURL(f.file); // converts the file into a base64 string(readasdataurl)
+        reader.readAsDataURL(f.file);
       })
     );
 
-    Promise.all(filesWithBase64Promises).then(results => { // Wait for All Conversions to Finish
-      // console.log("result:", results);
-      setBills(prev =>  // state update 
+    Promise.all(filesWithBase64Promises).then(results => {
+      setBills(prev =>
         prev.map(b =>
           b.id.toString() === billId
             ? { ...b, uploadedFiles: [...(b.uploadedFiles || []), ...results] }
@@ -329,6 +325,7 @@ const Dashboard: React.FC = () => {
     });
   };
 
+  // Filter bills based on search query and date range
   const filteredBills = bills.filter(bill => {
     const billDate = dayjs(bill.date);
     const afterFrom = fromDate ? billDate.isSame(fromDate, "day") || billDate.isAfter(fromDate, "day") : true;
@@ -336,6 +333,19 @@ const Dashboard: React.FC = () => {
     const matchesSearch = bill.billNo.toLowerCase().includes(searchQuery.toLowerCase()) || bill.partyName.toLowerCase().includes(searchQuery.toLowerCase());
     return afterFrom && beforeTo && matchesSearch;
   });
+
+  // Apply pagination to the filtered bills
+  const paginatedBills = filteredBills.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  // Pagination change handlers
+  const handleChangePage = (event: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -345,14 +355,12 @@ const Dashboard: React.FC = () => {
             <Typography variant="h5" className="text">Bill Generate</Typography>
             <Button variant="contained" className="button" onClick={handleAddBill}>Add</Button>
           </Box>
-
           <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", mt: 2, mb: 2, gap: 2 }}>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
               <DatePicker label="From Date" value={fromDate} onChange={setFromDate} format="DD-MM-YYYY" slotProps={{ textField: { sx: { width: { xs: "100%", sm: "200px" } } } }} />
               <DatePicker label="To Date" value={toDate} onChange={setToDate} format="DD-MM-YYYY" slotProps={{ textField: { sx: { width: { xs: "100%", sm: "200px" } } } }} />
               <Button variant="contained" className="button" onClick={() => { setFromDate(null); setToDate(null); }}>Clear</Button>
             </Box>
-
             <TextField
               label="Search Bills"
               variant="outlined"
@@ -361,7 +369,6 @@ const Dashboard: React.FC = () => {
               InputProps={{ endAdornment: (<InputAdornment position="end"><SearchIcon /></InputAdornment>) }}
             />
           </Box>
-
           <TableContainer component={Paper} className="bills-table-container">
             <Table className="bills-table">
               <TableHead>
@@ -397,10 +404,10 @@ const Dashboard: React.FC = () => {
                       </Box>
                     </TableCell>
                   </TableRow>
-                ) : filteredBills.length > 0 ? (
-                  filteredBills.map((bill, index) => (
+                ) : paginatedBills.length > 0 ? (
+                  paginatedBills.map((bill, index) => (
                     <TableRow key={bill.id}>
-                      <TableCell align="center">{index + 1}</TableCell>
+                      <TableCell align="center">{(page * rowsPerPage) + index + 1}</TableCell>
                       <TableCell align="center">
                         {editingBillId === bill.id ? (
                           <TextField
@@ -547,6 +554,15 @@ const Dashboard: React.FC = () => {
                 )}
               </TableBody>
             </Table>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={filteredBills.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
           </TableContainer>
 
           <UploadDialog

@@ -11,7 +11,7 @@ export interface Bill {
         name: string;
         url: string;
         data?: string;
-        type: 'sales' | 'voucher';
+        // type: 'sales' | 'voucher';
         invoiceId?: number;
     }[];
 }

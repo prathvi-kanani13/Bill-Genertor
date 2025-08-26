@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
     Button,
-    // List,
-    // ListItemButton,
-    // ListItemText,
+    List,
+    ListItemButton,
+    ListItemText,
     Typography,
     Box
 } from '@mui/material';
-import { getMimePrefix } from "../utils/getMimePrefix"
 
 interface ViewDocumentDialogProps {
     open: boolean;
@@ -20,25 +19,19 @@ interface ViewDocumentDialogProps {
 }
 
 const ViewDocumentDialog: React.FC<ViewDocumentDialogProps> = ({ open, onClose, documentFiles }) => {
-    // Memoize previewable files to avoid recalculation on every render
-    const previewableFiles = useMemo(() => {
-        return documentFiles.map(file => {
-            const needsPrefix = !file.url.startsWith("data:");
-            const fullUrl = needsPrefix ? getMimePrefix(file.url) + file.url : file.url;
-            return { ...file, url: fullUrl };
-        }).filter(file =>
-            file.url.startsWith("data:application/pdf") ||
-            file.url.startsWith("data:image/png") ||
-            file.url.startsWith("data:image/jpeg")
-        );
-    }, [documentFiles]);
+    const previewableFiles = documentFiles.filter(file =>
+        file.url.startsWith("data:application/pdf") ||
+        file.url.startsWith("data:image/png") ||
+        file.url.startsWith("data:image/jpeg")
+    );
 
     const [selectedFile, setSelectedFile] = useState<typeof previewableFiles[0] | null>(null);
 
     useEffect(() => {
-        // Only update selected file when dialog opens or documentFiles change
-        if (open) {
-            setSelectedFile(previewableFiles.length > 0 ? previewableFiles[0] : null);
+        if (previewableFiles.length > 0) {
+            setSelectedFile(previewableFiles[0]);
+        } else {
+            setSelectedFile(null);
         }
     }, [previewableFiles, open]);
 
@@ -50,7 +43,7 @@ const ViewDocumentDialog: React.FC<ViewDocumentDialogProps> = ({ open, onClose, 
                     <Typography>No documents available.</Typography>
                 ) : (
                     <>
-                        {/* {previewableFiles.length > 1 && (
+                        {previewableFiles.length > 1 && (
                             <Box sx={{ minWidth: 200, maxHeight: 400, overflowY: "auto", mr: 2 }}>
                                 <Typography sx={{ mb: 1, fontWeight: "bold" }}>
                                     Select a document:
@@ -67,7 +60,7 @@ const ViewDocumentDialog: React.FC<ViewDocumentDialogProps> = ({ open, onClose, 
                                     ))}
                                 </List>
                             </Box>
-                        )} */}
+                        )}
 
                         <Box sx={{ flex: 1 }}>
                             {selectedFile && selectedFile.url.startsWith("data:application/pdf") ? (

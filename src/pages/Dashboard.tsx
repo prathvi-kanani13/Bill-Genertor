@@ -294,35 +294,84 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleUploadSubmit = (files: { fileName: string; file: File; invoiceName: string }[], billId: string) => {
-    const filesWithBase64Promises = files.map(f =>
-      new Promise<{
-        fileName: string;
-        fileType: string;
-        url: string;
-        invoiceName?: string;
-      }>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve({
-          fileName: f.fileName,
-          fileType: f.file.name.slice(f.file.name.lastIndexOf('.')),
-          url: reader.result as string,
-          invoiceName: f.invoiceName,
-        });
-        reader.onerror = (err) => reject(err);
-        reader.readAsDataURL(f.file);
-      })
+  const handleUploadSubmit = async (
+    files: { fileName: string; file: File; invoiceName: string }[],
+    billId: string
+  ) => {
+    //  Convert uploaded files to base64
+    const filesWithBase64Promises = files.map(
+      f =>
+        new Promise<{
+          fileName: string;
+          fileType: string;
+          url: string;
+          invoiceName?: string;
+        }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () =>
+            resolve({
+              fileName: f.fileName,
+              fileType: f.file.name.slice(f.file.name.lastIndexOf(".")),
+              url: reader.result as string,
+              invoiceName: f.invoiceName,
+            });
+          reader.onerror = reject;
+          reader.readAsDataURL(f.file);
+        })
     );
 
-    Promise.all(filesWithBase64Promises).then(results => {
-      setBills(prev =>
-        prev.map(b =>
-          b.id.toString() === billId
-            ? { ...b, uploadedFiles: [...(b.uploadedFiles || []), ...results] }
-            : b
-        )
-      );
-    });
+    const results = await Promise.all(filesWithBase64Promises);
+
+    //  Update local state so UI shows uploaded files immediately
+    setBills(prev =>
+      prev.map(b =>
+        b.id.toString() === billId
+          ? { ...b, uploadedFiles: [...(b.uploadedFiles || []), ...results] }
+          : b
+      )
+    );
+
+    //  Get the full bill details
+    const bill = bills.find(b => b.id.toString() === billId);
+    if (!bill) return;
+
+    // Build the full payload including both old + new invoices
+    const invoices = [
+      ...(bill.uploadedFiles || []),
+      ...results,
+    ].map(file => ({
+      invoiceFileName: file.fileName,
+      invoiceName: file.invoiceName,
+      invoiceFileType: file.fileType,
+      invoiceFile: file.url.split(",")[1], // strip base64 prefix
+    }));
+
+    const payload = {
+      billNo: bill.billNo,
+      billDate: bill.date,
+      partyName: bill.partyName,
+      amount: bill.amount.toString(),
+      tax: bill.tax.toString(),
+      invoice: invoices,
+    };
+
+    //  Save to backend addBill
+    try {
+      const res = await fetch("http://10.55.2.48:8081/addBill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Failed to save bill: ${text}`);
+      }
+
+      // console.log("Bill + invoices saved successfully ");
+    } catch (err) {
+      console.error("Upload error:", err);
+    }
   };
 
   // Filter bills based on search query and date range
@@ -484,7 +533,7 @@ const Dashboard: React.FC = () => {
                           startIcon={<UploadFileIcon />}
                           size="small"
                           onClick={() => handleOpenUpload(bill.id.toString())}
-                          disabled={editingBillId !== bill.id}
+                        // disabled={editingBillId !== bill.id}
                         >
                           Upload ({bill.uploadedFiles?.length || 0})
                         </Button>

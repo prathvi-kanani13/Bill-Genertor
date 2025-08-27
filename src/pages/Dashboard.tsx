@@ -484,6 +484,7 @@ const Dashboard: React.FC = () => {
                           startIcon={<UploadFileIcon />}
                           size="small"
                           onClick={() => handleOpenUpload(bill.id.toString())}
+                          disabled={editingBillId !== bill.id}
                         >
                           Upload ({bill.uploadedFiles?.length || 0})
                         </Button>

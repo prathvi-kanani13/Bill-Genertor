@@ -5,13 +5,13 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    // List,
-    // ListItemButton,
-    // ListItemText,
+    List,
+    ListItemButton,
+    ListItemText,
     Typography,
     Box
 } from '@mui/material';
-import { getMimePrefix } from "../utils/getMimePrefix"
+import { getMimePrefix } from "../utils/getMimePrefix";
 
 interface ViewDocumentDialogProps {
     open: boolean;
@@ -20,7 +20,6 @@ interface ViewDocumentDialogProps {
 }
 
 const ViewDocumentDialog: React.FC<ViewDocumentDialogProps> = ({ open, onClose, documentFiles }) => {
-    // Memoize previewable files to avoid recalculation on every render
     const previewableFiles = useMemo(() => {
         return documentFiles.map(file => {
             const needsPrefix = !file.url.startsWith("data:");
@@ -33,53 +32,72 @@ const ViewDocumentDialog: React.FC<ViewDocumentDialogProps> = ({ open, onClose, 
         );
     }, [documentFiles]);
 
-    const [selectedFile, setSelectedFile] = useState<typeof previewableFiles[0] | null>(null);
+    const [selectedFile, setSelectedFile] = useState<{ name: string; url: string; isPreviewable: boolean } | null>(null);
 
     useEffect(() => {
-        // Only update selected file when dialog opens or documentFiles change
         if (open) {
-            setSelectedFile(previewableFiles.length > 0 ? previewableFiles[0] : null);
+            // Select the first previewable file by default if available
+            if (previewableFiles.length > 0) {
+                setSelectedFile({ ...previewableFiles[0], isPreviewable: true });
+            } else if (documentFiles.length > 0) {
+                // Otherwise, select the first file in the list (non-previewable)
+                setSelectedFile({ ...documentFiles[0], isPreviewable: false });
+            } else {
+                setSelectedFile(null);
+            }
         }
-    }, [previewableFiles, open]);
+    }, [previewableFiles, documentFiles, open]);
+
+    const handleFileSelect = (file: { name: string; url: string }) => {
+        const isPreviewable =
+            file.url.startsWith("data:application/pdf") ||
+            file.url.startsWith("data:image/png") ||
+            file.url.startsWith("data:image/jpeg");
+
+        if (isPreviewable) {
+            const fullUrl = !file.url.startsWith("data:") ? getMimePrefix(file.url) + file.url : file.url;
+            setSelectedFile({ ...file, url: fullUrl, isPreviewable: true });
+        } else {
+            setSelectedFile({ ...file, isPreviewable: false });
+        }
+    };
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>View Uploaded Documents</DialogTitle>
             <DialogContent sx={{ display: "flex", gap: 2 }}>
-                {previewableFiles.length === 0 ? (
+                {documentFiles.length === 0 ? (
                     <Typography>No documents available.</Typography>
                 ) : (
                     <>
-                        {/* {previewableFiles.length > 1 && (
-                            <Box sx={{ minWidth: 200, maxHeight: 400, overflowY: "auto", mr: 2 }}>
-                                <Typography sx={{ mb: 1, fontWeight: "bold" }}>
-                                    Select a document:
-                                </Typography>
-                                <List dense>
-                                    {previewableFiles.map((file, idx) => (
-                                        <ListItemButton
-                                            key={idx}
-                                            onClick={() => setSelectedFile(file)}
-                                            selected={selectedFile?.name === file.name}
-                                        >
-                                            <ListItemText primary={file.name} />
-                                        </ListItemButton>
-                                    ))}
-                                </List>
-                            </Box>
-                        )} */}
+                        <Box sx={{ minWidth: 200, maxHeight: 400, overflowY: "auto", mr: 2 }}>
+                            <Typography sx={{ mb: 1, fontWeight: "bold" }}>
+                                Select a document:
+                            </Typography>
+                            <List dense>
+                                {documentFiles.map((file, idx) => (
+                                    <ListItemButton
+                                        key={idx}
+                                        onClick={() => handleFileSelect(file)}
+                                        selected={selectedFile?.name === file.name}
+                                    >
+                                        <ListItemText primary={file.name} />
+                                    </ListItemButton>
+                                ))}
+                            </List>
+                        </Box>
 
                         <Box sx={{ flex: 1 }}>
-                            {selectedFile && selectedFile.url.startsWith("data:application/pdf") ? (
-                                <iframe
-                                    src={selectedFile.url}
-                                    title={selectedFile.name}
-                                    width="100%"
-                                    height="500px"
-                                    style={{ border: "1px solid #ccc", borderRadius: "8px" }}
-                                />
-                            ) : (
-                                selectedFile && (
+                            {selectedFile?.isPreviewable ? (
+                                selectedFile.url.startsWith("data:application/pdf") ? (
+                                    <iframe
+                                        src={selectedFile.url}
+                                        title={selectedFile.name}
+                                        width="100%"
+                                        height="500px"
+                                        style={{ border: "1px solid #ccc", borderRadius: "8px" }}
+                                    />
+                                ) : (
                                     <Box sx={{ display: "flex", justifyContent: "center" }}>
                                         <img
                                             src={selectedFile.url}
@@ -93,6 +111,25 @@ const ViewDocumentDialog: React.FC<ViewDocumentDialogProps> = ({ open, onClose, 
                                         />
                                     </Box>
                                 )
+                            ) : (
+                                <Box sx={{ p: 2, border: "1px solid #ccc", borderRadius: "8px" }}>
+                                    <Typography>This document cannot be previewed. Would you like to download it?</Typography>
+                                    {selectedFile && (
+                                        <Button
+                                            variant="contained"
+                                            href={selectedFile.url}
+                                            download={selectedFile.name}
+                                            component="a"
+                                            sx={{
+                                                mt: 2,
+                                                bgcolor: "#3f51b5",
+                                                "&:hover": { bgcolor: "#303f9f" }
+                                            }}
+                                        >
+                                            Download ({selectedFile.name})
+                                        </Button>
+                                    )}
+                                </Box>
                             )}
                         </Box>
                     </>
